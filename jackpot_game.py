@@ -1,8 +1,17 @@
 #!/usr/bin/env python3
 import os
 import random
+import sys
 import time
 from datetime import datetime
+
+try:
+    from rich.align import Align
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+except Exception:
+    Console = None
 
 RED = "\033[0;31m"
 GREEN = "\033[0;32m"
@@ -20,9 +29,22 @@ jackpot_pool = 500
 
 os.makedirs(DATA_DIR, exist_ok=True)
 
+console = Console() if Console else None
+USE_RICH = console is not None
+
+
+def clear_screen():
+    os.system("clear")
+
 
 def print_header():
-    os.system("clear")
+    clear_screen()
+    if USE_RICH:
+        title = "[bold green]TERMUX JACKPOT GAME v2[/bold green]"
+        subtitle = "[green]LuckyTermux Edition[/green]"
+        body = f"{title}\n{subtitle}"
+        console.print(Panel(Align.center(body), border_style="green"))
+        return
     print(f"{GREEN}========================================={NC}")
     print(f"{GREEN}        TERMUX JACKPOT GAME v2          {NC}")
     print(f"{GREEN}========================================={NC}")
@@ -71,6 +93,13 @@ def choose_player():
 
 
 def show_status():
+    if USE_RICH:
+        table = Table(show_header=False, box=None)
+        table.add_row("[yellow]Player[/yellow]", f"[green]{player_name}[/green]")
+        table.add_row("[yellow]Balance[/yellow]", f"[green]${balance}[/green]")
+        table.add_row("[yellow]Jackpot Pool[/yellow]", f"[green]${jackpot_pool}[/green]")
+        console.print(Panel(table, title="Status", border_style="green"))
+        return
     print(f"{YELLOW}Player: {NC}{GREEN}{player_name}{NC}")
     print(f"{YELLOW}Balance: {NC}{GREEN}${balance}{NC}")
     print(f"{YELLOW}Jackpot Pool: {NC}{GREEN}${jackpot_pool}{NC}")
@@ -90,6 +119,28 @@ def choose_bet_level():
         return 20, 200, 10, 10
     print(f"{RED}Invalid choice.{NC}")
     return None
+
+
+def spin_animation(win: bool):
+    symbols = ["7", "★", "♦", "♣", "♥", "☀", "☘", "◆"]
+    frames = 18
+    interval = 0.08
+
+    for _ in range(frames):
+        s1 = random.choice(symbols)
+        s2 = random.choice(symbols)
+        s3 = random.choice(symbols)
+        sys.stdout.write(f"\r{YELLOW}Spinning... [{s1}] [{s2}] [{s3}]{NC}")
+        sys.stdout.flush()
+        time.sleep(interval)
+
+    if win:
+        final = ("7", "7", "7")
+    else:
+        final = random.sample(symbols, 3)
+
+    sys.stdout.write(f"\r{GREEN}Result:   [{final[0]}] [{final[1]}] [{final[2]}]{NC}\n")
+    sys.stdout.flush()
 
 
 def view_history():
@@ -135,13 +186,14 @@ def play_round():
         pause()
         return
 
-    print(f"{YELLOW}Spinning the wheels...{NC}")
-    time.sleep(2)
-
     result = random.randint(0, hit_mod - 1)
     jackpot_hit = random.randint(0, 49)
+    win = result == 0
 
-    if result == 0:
+    print(f"{YELLOW}Spinning the wheels...{NC}")
+    spin_animation(win)
+
+    if win:
         win_amount = bet_input * win_mult
         balance += win_amount
         print(f"{GREEN}You win!{NC}")
@@ -175,9 +227,16 @@ def main_menu():
     while True:
         print_header()
         show_status()
-        print(f"{GREEN}1. Play{NC}")
-        print(f"{GREEN}2. View History{NC}")
-        print(f"{GREEN}3. Save & Exit{NC}")
+        if USE_RICH:
+            menu = Table(show_header=False, box=None)
+            menu.add_row("[green]1.[/green]", "Play")
+            menu.add_row("[green]2.[/green]", "View History")
+            menu.add_row("[green]3.[/green]", "Save & Exit")
+            console.print(Panel(menu, title="Menu", border_style="green"))
+        else:
+            print(f"{GREEN}1. Play{NC}")
+            print(f"{GREEN}2. View History{NC}")
+            print(f"{GREEN}3. Save & Exit{NC}")
         choice = input().strip()
         if choice == "1":
             play_round()
